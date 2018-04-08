@@ -2,7 +2,7 @@ module App exposing (..)
 
 import Collage exposing (Form, collage, filled, group, move, moveX, rect)
 import Color exposing (red)
-import Direction
+import KeyAction
 import Element exposing (Element)
 import Html exposing (Html, div, program)
 import Html.Attributes exposing (style)
@@ -20,6 +20,10 @@ type alias Model =
     , game: Game
     , time: Time
     }
+
+type GameState
+    = Running
+    | Paused
 
 type alias Block =
     { lane: Lane
@@ -39,6 +43,7 @@ type alias Board =
 type alias Game =
     { boards: List Board
     , score: Int
+    , gameState: GameState
     }
 
 type Msg
@@ -74,6 +79,7 @@ init =
         game =
             { boards = boards
             , score = 0
+            , gameState = Paused
             }
         time = 0
         model =
@@ -94,38 +100,70 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         Resize size ->
-            ( { model | windowSize = Debug.log "windowSize" size }
+            ( { model | windowSize = size }
             , Cmd.none
             )
+
         Tick time -> onTick time model
+
         KeyDown keyCode ->
-            case Direction.direction keyCode of
-                Just dir ->
-                    ( { model | game = setCharacterLane (Lane.fromDirection dir) model.game }
-                    , Cmd.none
-                    )
-                Nothing ->
-                    ( model
-                    , Cmd.none
-                    )
+            case model.game.gameState of
+                Running ->
+                    case KeyAction.runningKeyAction keyCode of
+                        Just KeyAction.MoveRight ->
+                            ( { model | game = setCharacterLane Lane.Right model.game }
+                            , Cmd.none
+                            )
+                        Just KeyAction.MoveLeft ->
+                            ( { model | game = setCharacterLane Lane.Left model.game }
+                            , Cmd.none
+                            )
+                        Just KeyAction.Pause ->
+                            ( setGameState Paused model
+                            , Cmd.none
+                            )
+                        Nothing ->
+                            ( model
+                            , Cmd.none
+                            )
+                Paused ->
+                    case KeyAction.pausedKeyAction keyCode of
+                        Just KeyAction.Unpause ->
+                            ( setGameState Running model
+                            , Cmd.none
+                            )
+                        Nothing ->
+                            ( model
+                            , Cmd.none
+                            )
+
         GameGenerated game ->
             ( { model
               | game = game
               }
             , Cmd.none
             )
+
         GenerateBlock time ->
             ( { model | time = time }, generateBlock model.game)
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ resizes Resize
-        , every (16 * millisecond) Tick
-        , every (300 * millisecond) GenerateBlock
-        , downs KeyDown
-        ]
+    case model.game.gameState of
+        Running ->
+            Sub.batch
+                [ resizes Resize
+                , every (16 * millisecond) Tick
+                , every (800 * millisecond) GenerateBlock
+                , downs KeyDown
+                ]
+
+        Paused ->
+            Sub.batch
+                [ resizes Resize
+                , downs KeyDown
+                ]
 
 
 view : Model -> Html msg
@@ -292,8 +330,8 @@ randomIndex list = Random.int 0 (List.length list - 1)
 
 addBlockToBoard : Game -> Int -> Block -> Game
 addBlockToBoard game boardIndex block =
-    let addBlockIfCorrectIndex : Int -> Int -> Board -> Board
-        addBlockIfCorrectIndex boardIndex index board =
+    let addBlockIfCorrectIndex : Int -> Board -> Board
+        addBlockIfCorrectIndex index board =
             if index == boardIndex
                 then { board
                      | blocks = block :: board.blocks
@@ -302,7 +340,7 @@ addBlockToBoard game boardIndex block =
     in
         { game
         | boards =
-            List.indexedMap (addBlockIfCorrectIndex boardIndex) game.boards
+            List.indexedMap addBlockIfCorrectIndex game.boards
         }
 
 
@@ -336,3 +374,10 @@ removePassedBlocks game =
         | boards = newBoards
         , score = game.score + numRemovedBlocks
         }
+
+
+setGameState : GameState -> Model -> Model
+setGameState gameState model =
+    let game = model.game
+    in
+        { model | game = { game | gameState = gameState } }
