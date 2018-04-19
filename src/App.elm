@@ -13,6 +13,8 @@ import Task exposing (perform)
 import Time exposing (Time, every, millisecond)
 import Window exposing (Size, resizes)
 import RandomExtra exposing (..)
+import AnimationFrame
+import Text
 
 
 type alias Model =
@@ -104,7 +106,7 @@ update msg model =
             , Cmd.none
             )
 
-        Tick time -> onTick time model
+        Tick diff -> onTick diff model
 
         KeyDown keyCode ->
             case model.game.gameState of
@@ -154,8 +156,8 @@ subscriptions model =
         Running ->
             Sub.batch
                 [ resizes Resize
-                , every (16 * millisecond) Tick
-                , every (800 * millisecond) GenerateBlock
+                , AnimationFrame.diffs Tick
+                , every (300 * millisecond) GenerateBlock
                 , downs KeyDown
                 ]
 
@@ -220,8 +222,27 @@ game (width, height) game =
                 |> List.map (board (bw, h))
                 |> List.indexedMap (\ index board -> moveX (-w/2 + bw/2 + bw * (toFloat index)) board)
                 |> group
+            , score (width, height) game.score
             ]
             |> Element.toHtml
+
+
+score : (Int, Int) -> Int -> Form
+score (width, height) score =
+    let
+        w = toFloat width
+        h = toFloat height
+        scoreString = toString score
+        textHeight = 40
+        x = 0
+        y = h/2 - textHeight/2
+    in
+        Text.fromString scoreString
+        |> Text.height 40
+        |> Text.color Color.yellow
+        |> Text.monospace
+        |> Collage.text
+        |> Collage.move (x, y)
 
 
 board : (Float, Float) -> Board -> Form
@@ -258,23 +279,22 @@ block (width, height) block =
 
 
 onTick : Time -> Model -> (Model, Cmd Msg)
-onTick time model =
+onTick diff model =
     let
         newModel =
             { model
-            | time = time
-            , game = updateGame model.game |> removePassedBlocks
+            | game = updateGame diff model.game |> removePassedBlocks
             }
         cmd = Cmd.none
     in
         ( newModel, cmd )
 
 
-updateGame : Game -> Game
-updateGame game =
+updateGame : Time -> Game -> Game
+updateGame diff game =
     let updateBlock block =
             { block
-            | height = block.height - block.speed
+            | height = block.height - block.speed * diff / 1000
             }
         updateBoard board =
             { board
@@ -293,7 +313,7 @@ randomLane = Random.map (\ leftLane -> if leftLane then Lane.Left else Lane.Righ
 
 
 randomSpeed : Random.Generator Float
-randomSpeed = Random.float 0.025 0.03
+randomSpeed = Random.float 1 1.1
 
 
 randomBlock : Random.Generator Block
@@ -372,7 +392,7 @@ removePassedBlocks game =
     in
         { game
         | boards = newBoards
-        , score = game.score + numRemovedBlocks
+        , score = game.score + numRemovedBlocks * 10
         }
 
 
