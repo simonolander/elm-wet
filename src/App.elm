@@ -40,9 +40,7 @@ init =
     let windowSize = Size 0 0
         emptyBoard =
             { blocks = []
-            , character =
-                { lane = Left
-                }
+            , character = {}
             }
         boards =
             [ emptyBoard
@@ -53,6 +51,7 @@ init =
             , score = 0
             , gameState = Paused
             , numHits = 0
+            , characterLane = Left
             }
         time = 0
         model =
@@ -193,7 +192,7 @@ game (width, height) game =
     in
         collage width height
             [ boards
-                |> List.map (board (bw, h))
+                |> List.map (board (bw, h) game.characterLane)
                 |> List.indexedMap (\ index board -> moveX (-w/2 + bw/2 + bw * (toFloat index)) board)
                 |> group
             , score (width, height) game.score
@@ -238,15 +237,15 @@ numHits (width, height) numHits =
         |> Collage.move (x, y)
 
 
-board : (Float, Float) -> Board -> Form
-board (width, height) board =
+board : (Float, Float) -> Lane -> Board -> Form
+board (width, height) characterLane board =
     let blocks =
             board.blocks
             |> List.map (block (width, height))
             |> group
         character =
             let w = width / 5
-                x = case board.character.lane of
+                x = case characterLane of
                         Left -> -width/2 + w/2 + width / 5
                         Right -> -width/2 + w/2 + 3 * width / 5
                 y = w - height / 2

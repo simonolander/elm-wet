@@ -1,5 +1,6 @@
 module GameController exposing (..)
 
+import ListUtils exposing (zip)
 import Random
 import Time exposing (Time)
 
@@ -20,7 +21,7 @@ type alias Block =
     }
 
 type alias Character =
-    { lane: Lane
+    {
     }
 
 type alias Board =
@@ -33,6 +34,7 @@ type alias Game =
     , score: Int
     , gameState: GameState
     , numHits: Int
+    , characterLane: Lane
     }
 
 
@@ -40,36 +42,79 @@ aspect : Float
 aspect = 9/16
 
 
+unit : Float
+unit = 1/5 * aspect
+
+
 updateGame : Time -> Game -> Game
 updateGame diff game =
-    let updateBlock block =
-            moveY (block.speed * diff / 1000) block
-        updateBoard board =
-            { board
-            | blocks = List.map updateBlock board.blocks
-            }
-        updatedGame =
-            { game
-            | boards = List.map updateBoard game.boards
-            }
+    let
+        (boards, offs, hits) =
+            game.boards
+            |> List.map (updateBoard diff game.characterLane)
+            |> ListUtils.unzip3
+        score = List.sum offs + game.score
+        numHits = List.sum hits + game.numHits
     in
-        updatedGame
-        |> removePassedBlocks
+        { game
+        | boards = boards
+        , score = score
+        , numHits = numHits
+        }
+
+
+updateBoard : Time -> Lane -> Board -> (Board, Int, Int)
+updateBoard diff characterLane board =
+    let
+        updateBlock : Block -> Block
+        updateBlock block =
+            moveY (block.speed * diff / 1000) block
+
+        blockBelowBoard : Block -> Bool
+        blockBelowBoard block =
+            block.y + block.height < 0
+
+        blockHitsCharacter : Block -> Block -> Bool
+        blockHitsCharacter b1 b2 =
+            let
+                y1 = min b1.y b2.y
+                y2 = max (b1.y + b1.height) (b2.y + b2.height)
+                c1 = 0
+                c2 = unit
+            in
+                characterLane == b2.lane && (y1 <= c1 && c1 <= y2 || y1 <= c2 && c2 <= y2)
+
+        updateBlocks : List Block -> (List Block, Int, Int)
+        updateBlocks blocks =
+            case blocks of
+                block :: tail ->
+                    let
+                        updatedBlock = updateBlock block
+                        (b, off, hit) = updateBlocks tail
+                    in
+                        if blockHitsCharacter block updatedBlock
+                            then (b, off, hit + 1)
+                        else if blockBelowBoard updatedBlock
+                            then (b, off + 1, hit)
+                        else
+                            (updatedBlock :: b, off, hit)
+                _ -> ([], 0, 0)
+
+        (newBlocks, off, hit) = updateBlocks board.blocks
+    in
+        ( { board
+          | blocks = newBlocks
+          }
+        , off
+        , hit
+        )
 
 
 setCharacterLane : Lane -> Game -> Game
 setCharacterLane lane game =
-    let
-        character : Lane -> Character -> Character
-        character lane character =
-            { character | lane = lane }
-        board : Lane -> Board -> Board
-        board lane board =
-            { board | character = character lane board.character}
-    in
-        { game
-        | boards = List.map (board lane) game.boards
-        }
+    { game
+    | characterLane = lane
+    }
 
 
 addBlockToBoard : Game -> Int -> Block -> Game
@@ -136,7 +181,7 @@ randomBlock =
             { speed = speed
             , y = 1
             , lane = lane
-            , height = 1/5 * aspect
+            , height = unit
             }
     in
         Random.map2 toBlock randomLane randomSpeed
@@ -154,3 +199,16 @@ setGameState gameState game =
 moveY : Float -> Block -> Block
 moveY dy block =
     { block | y = block.y + dy }
+
+
+merge : (Block, Block) -> Block
+merge (b1, b2) =
+    let
+        minY = min b1.y b2.y
+        maxY = max (b1.y + b1.height) (b2.y + b2.height)
+        height = maxY - minY
+    in
+        { b1
+        | y = minY
+        , height = height
+        }
