@@ -113,10 +113,8 @@ toCharacter char =
                 , (x2, y0)
                 , (x2, y5)
                 , (x1, y5)
-                , (x1, y4)
                 , (x0, y4)
-                , (x0, y3)
-                , (x1, y3)
+                , (x1, y4)
                 ]
         '2' ->
             Collage.polygon
