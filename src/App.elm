@@ -133,7 +133,7 @@ subscriptions model =
             Sub.batch
                 [ resizes Resize
                 , AnimationFrame.diffs Tick
-                , every (300 * millisecond) GenerateBlock
+                , every (700 * millisecond) GenerateBlock
                 , downs KeyDown
                 ]
 
@@ -320,7 +320,10 @@ block (width, height) block =
         y = height * block.y - height / 2 + r
         shape = Collage.polygon ( (0, r*1.5) :: ( circleArc 0 0 r (pi * 3 / 4) (pi * 3 / 2) 20 ) )
     in
-        shape |> filled (Color.rgb 43 128 255) |> move (x, y)
+        Collage.group
+            [ shape |> filled (Color.rgb 43 128 255)
+            , shape |> Collage.outlined Collage.defaultLine
+            ] |> move (x, y)
 
 
 onTick : Time -> Model -> (Model, Cmd Msg)

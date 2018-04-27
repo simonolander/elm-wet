@@ -148,7 +148,7 @@ randomLane = Random.map (\ leftLane -> if leftLane then Left else Right) Random.
 
 
 randomSpeed : Random.Generator Float
-randomSpeed = Random.float -1 -1.1
+randomSpeed = Random.float -0.7 -0.8
 
 
 randomBlock : Random.Generator Block
