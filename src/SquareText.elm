@@ -60,7 +60,6 @@ y5 : Float
 y5 = y4 + thicc
 
 
-
 text : String -> (Collage.Form, Float, Float)
 text string =
     let

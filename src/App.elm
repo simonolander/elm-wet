@@ -313,13 +313,14 @@ board (width, height) character board =
 block : (Float, Float) -> Block -> Form
 block (width, height) block =
     let lane = block.lane
-        w = width / 5
+        r = width / 5 / 2
         x = case block.lane of
-            Left -> -width/2 + w/2 + width / 5
-            Right -> -width/2 + w/2 + 3 * width / 5
-        y = height * block.y - height / 2 + w / 2
+            Left -> -width/2 + r + width / 5
+            Right -> -width/2 + r + 3 * width / 5
+        y = height * block.y - height / 2 + r
+        shape = Collage.polygon ( (0, r*1.5) :: ( circleArc 0 0 r (pi * 3 / 4) (pi * 3 / 2) 20 ) )
     in
-        rect w w |> filled (Color.rgb 43 128 255) |> move (x, y)
+        shape |> filled (Color.rgb 43 128 255) |> move (x, y)
 
 
 onTick : Time -> Model -> (Model, Cmd Msg)
@@ -338,3 +339,13 @@ generateBlock : Game -> Cmd Msg
 generateBlock game =
     Random.map2 (addBlockToBoard game) (randomIndex game.boards) randomBlock
     |> Random.generate GameGenerated
+
+
+circleArc : Float -> Float -> Float -> Float -> Float -> Int -> List (Float, Float)
+circleArc cx cy r start rads n =
+    let
+        point : Int -> (Float, Float)
+        point index =
+            (cx + r * cos (start + rads * (toFloat index / toFloat n)), cy + r * sin (start + rads * (toFloat index / toFloat n)))
+    in
+        List.map point (List.range 0 n)
