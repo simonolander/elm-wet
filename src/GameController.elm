@@ -21,12 +21,13 @@ type alias Block =
     }
 
 type alias Character =
-    {
+    { lane: Lane
+    , y: Float
+    , height: Float
     }
 
 type alias Board =
     { blocks: List Block
-    , character: Character
     }
 
 type alias Game =
@@ -34,7 +35,8 @@ type alias Game =
     , score: Int
     , gameState: GameState
     , numHits: Int
-    , characterLane: Lane
+    , character: Character
+    , remainingLives: Int
     }
 
 
@@ -43,7 +45,7 @@ aspect = 9/16
 
 
 unit : Float
-unit = 1/5 * aspect
+unit = 1/5 * aspect * 1/2
 
 
 updateGame : Time -> Game -> Game
@@ -51,7 +53,7 @@ updateGame diff game =
     let
         (boards, offs, hits) =
             game.boards
-            |> List.map (updateBoard diff game.characterLane)
+            |> List.map (updateBoard diff game.character)
             |> ListUtils.unzip3
         score = List.sum offs + game.score
         numHits = List.sum hits + game.numHits
@@ -60,11 +62,12 @@ updateGame diff game =
         | boards = boards
         , score = score
         , numHits = numHits
+        , remainingLives = 3 - numHits
         }
 
 
-updateBoard : Time -> Lane -> Board -> (Board, Int, Int)
-updateBoard diff characterLane board =
+updateBoard : Time -> Character -> Board -> (Board, Int, Int)
+updateBoard diff character board =
     let
         updateBlock : Block -> Block
         updateBlock block =
@@ -79,10 +82,10 @@ updateBoard diff characterLane board =
             let
                 y1 = min b1.y b2.y
                 y2 = max (b1.y + b1.height) (b2.y + b2.height)
-                c1 = 0
-                c2 = unit
+                c1 = character.y
+                c2 = character.y + character.height
             in
-                characterLane == b2.lane && (y1 <= c1 && c1 <= y2 || y1 <= c2 && c2 <= y2)
+                character.lane == b2.lane && (y1 <= c1 && c1 <= y2 || y1 <= c2 && c2 <= y2)
 
         updateBlocks : List Block -> (List Block, Int, Int)
         updateBlocks blocks =
@@ -112,9 +115,16 @@ updateBoard diff characterLane board =
 
 setCharacterLane : Lane -> Game -> Game
 setCharacterLane lane game =
-    { game
-    | characterLane = lane
-    }
+    let
+        character = game.character
+        newCharacter =
+            { character
+            | lane = lane
+            }
+    in
+        { game
+        | character = newCharacter
+        }
 
 
 addBlockToBoard : Game -> Int -> Block -> Game
@@ -130,39 +140,6 @@ addBlockToBoard game boardIndex block =
         { game
         | boards =
             List.indexedMap addBlockIfCorrectIndex game.boards
-        }
-
-
-
-removePassedBlocks : Game -> Game
-removePassedBlocks game =
-    let filterBlock : Block -> Bool
-        filterBlock block =
-            block.y + block.height > 0
-
-        filterBoard : Board -> Board
-        filterBoard board =
-            { board
-            | blocks = List.filter filterBlock board.blocks
-            }
-
-        newBoards : List Board
-        newBoards =
-            List.map filterBoard game.boards
-
-        countBlocks : List Board -> Int
-        countBlocks boards =
-            boards
-            |> List.map (List.length << .blocks)
-            |> List.sum
-
-        numRemovedBlocks : Int
-        numRemovedBlocks = countBlocks game.boards - countBlocks newBoards
-
-    in
-        { game
-        | boards = newBoards
-        , score = game.score + numRemovedBlocks
         }
 
 

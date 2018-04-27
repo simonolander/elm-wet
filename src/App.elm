@@ -40,18 +40,23 @@ init =
     let windowSize = Size 0 0
         emptyBoard =
             { blocks = []
-            , character = {}
             }
         boards =
             [ emptyBoard
             , emptyBoard
             ]
+        character =
+            { lane = Left
+              , y = 0.05
+              , height = unit
+            }
         game =
             { boards = boards
             , score = 0
             , gameState = Paused
             , numHits = 0
-            , characterLane = Left
+            , character = character
+            , remainingLives = 3
             }
         time = 0
         model =
@@ -162,7 +167,12 @@ view model =
                 [ ("width", "100%")
                 , ("height", "100%")
                 , ("overflow", "hidden")
-                , ("background", "#94a1fb")
+--                , ("background", "rgb(18, 43, 23)")
+                , ("background", "linear-gradient( rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(/assets/forest-puddle.jpg)")
+--                , ("background-repeat", "no-repeat")
+                , ("background-size", "cover")
+                , ("background-position", "center")
+
                 ]
             ]
             [ div
@@ -174,7 +184,7 @@ view model =
                     , ("left", left)
                     , ("top", top)
                     , ("position", "absolute")
-                    , ("background-image", "url(https://img.buzzfeed.com/buzzfeed-static/static/enhanced/webdr03/2013/8/16/16/anigif_enhanced-buzz-25538-1376684244-13.gif)")
+                    , ("background-image", "url(/assets/forest-puddle-animation.gif)")
                     , ("background-repeat", "no-repeat")
                     , ("background-size", toString width ++ "px" ++ " " ++ toString height ++ "px")
                     ]
@@ -192,13 +202,29 @@ game (width, height) game =
     in
         collage width height
             [ boards
-                |> List.map (board (bw, h) game.characterLane)
+                |> List.map (board (bw, h) game.character)
                 |> List.indexedMap (\ index board -> moveX (-w/2 + bw/2 + bw * (toFloat index)) board)
                 |> group
+            , topBar (w, h)
             , score (width, height) game.score
             , numHits (width, height) game.numHits
+            , lives (width, height) game.remainingLives
             ]
             |> Element.toHtml
+
+
+topBar : (Float, Float) -> Form
+topBar (w, h) =
+    let
+        height = h * unit * 1.4
+        grad = Color.linear
+            ( 0, height / 2 )
+            ( 0, -height / 2 )
+            [ ( 0, Color.black )
+            , ( 1, Color.rgba 0 0 0 0)
+            ]
+    in
+        rect w height |> Collage.gradient grad |> Collage.moveY (h / 2 - height / 2)
 
 
 score : (Int, Int) -> Int -> Form
@@ -237,24 +263,72 @@ numHits (width, height) numHits =
         |> Collage.move (x, y)
 
 
-board : (Float, Float) -> Lane -> Board -> Form
-board (width, height) characterLane board =
+lives : (Int, Int) -> Int -> Form
+lives (width, height) remainingLives =
+    let
+        w = toFloat width
+        h = toFloat height
+
+        heartWidth = unit * 2/3 * h
+        heartHeight = unit * 2/3 * h
+
+        color : Int -> Collage.Shape -> Form
+        color index heart =
+            filled (if index < remainingLives then Color.red else Color.darkCharcoal) heart
+
+        move : Int -> Form -> Form
+        move index heart =
+            Collage.move (-w / 2 + heartWidth * 1.5 * (toFloat index) + heartWidth, h / 2 - heartHeight) heart
+    in
+        List.repeat 3 (heart heartWidth heartHeight)
+        |> List.indexedMap color
+        |> List.indexedMap move
+        |> group
+
+
+heart : Float -> Float -> Collage.Shape
+heart width height =
+    let
+        -- r * 2 + sqrt(2*r**2) = width
+        r = width * (1 - sqrt(2) / 2)
+        h = 4 * r / sqrt 2
+        cx = width / 2 - r
+        cy = h / 2 - r
+        halfCircle cx cy angle =
+            let
+                n = 10
+                point : Int -> (Float, Float)
+                point index =
+                    (cx + r * cos (angle + pi * (toFloat index / toFloat n)), cy + r * sin (angle + pi * (toFloat index / toFloat n)))
+            in
+                List.map point (List.range 0 n)
+        rightHalf = halfCircle cx cy (-pi / 4)
+        leftHalf = halfCircle -cx cy (pi / 4)
+    in
+        Collage.polygon
+            ((0, -h/2) :: rightHalf ++ leftHalf)
+
+
+board : (Float, Float) -> Character -> Board -> Form
+board (width, height) character board =
     let blocks =
             board.blocks
             |> List.map (block (width, height))
             |> group
-        character =
-            let w = width / 5
-                x = case characterLane of
+        characterBlock =
+            let
+                w = width / 5
+                h = character.height * height
+                x = case character.lane of
                         Left -> -width/2 + w/2 + width / 5
                         Right -> -width/2 + w/2 + 3 * width / 5
-                y = w - height / 2
+                y = height * character.y + w / 2 - height / 2
             in
-                rect w w |> filled Color.green |> move (x, y)
+                rect w h |> filled Color.green |> move (x, y)
     in
         group
             [ blocks
-            , character
+            , characterBlock
             ]
 
 
@@ -265,7 +339,7 @@ block (width, height) block =
         x = case block.lane of
             Left -> -width/2 + w/2 + width / 5
             Right -> -width/2 + w/2 + 3 * width / 5
-        y = height * block.y - height / 2
+        y = height * block.y - height / 2 + w / 2
     in
         rect w w |> filled Color.orange |> move (x, y)
 
