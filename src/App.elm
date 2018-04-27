@@ -207,7 +207,6 @@ game (width, height) game =
                 |> group
             , topBar (w, h)
             , score (width, height) game.score
-            , numHits (width, height) game.numHits
             , lives (width, height) game.remainingLives
             ]
             |> Element.toHtml
@@ -233,31 +232,13 @@ score (width, height) score =
         w = toFloat width
         h = toFloat height
         scoreString = toString score
-        textHeight = 40
+        textHeight = unit * 0.9 * h
         x = 0
         y = h/2 - textHeight/2
     in
         Text.fromString scoreString
-        |> Text.height 40
+        |> Text.height textHeight
         |> Text.color Color.yellow
-        |> Text.monospace
-        |> Collage.text
-        |> Collage.move (x, y)
-
-
-numHits : (Int, Int) -> Int -> Form
-numHits (width, height) numHits =
-    let
-        w = toFloat width
-        h = toFloat height
-        numHitsString = toString numHits
-        textHeight = 40
-        x = 0
-        y = h/2 - textHeight*3/2
-    in
-        Text.fromString numHitsString
-        |> Text.height 40
-        |> Text.color Color.red
         |> Text.monospace
         |> Collage.text
         |> Collage.move (x, y)
@@ -341,7 +322,7 @@ block (width, height) block =
             Right -> -width/2 + w/2 + 3 * width / 5
         y = height * block.y - height / 2 + w / 2
     in
-        rect w w |> filled Color.orange |> move (x, y)
+        rect w w |> filled (Color.rgb 43 128 255) |> move (x, y)
 
 
 onTick : Time -> Model -> (Model, Cmd Msg)
