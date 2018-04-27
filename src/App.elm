@@ -17,6 +17,7 @@ import AnimationFrame
 import Text
 import GameController exposing (..)
 import Msg exposing (..)
+import SquareText
 
 
 type alias Model =
@@ -231,17 +232,13 @@ score (width, height) score =
     let
         w = toFloat width
         h = toFloat height
-        scoreString = toString score
-        textHeight = unit * 0.9 * h
-        x = 0
-        y = h/2 - textHeight/2
+        (form, ww, hh) = SquareText.text (toString score)
+        scale = unit * 0.8 * h / hh
+        x = w/2 - ww * scale / 2 - w * 0.03
+        y = h/2 - hh * scale / 2 - w * 0.03
     in
-        Text.fromString scoreString
-        |> Text.height textHeight
-        |> Text.color Color.yellow
-        |> Text.monospace
-        |> Collage.text
-        |> Collage.move (x, y)
+        form |> Collage.scale scale |> Collage.move (x, y)
+
 
 
 lives : (Int, Int) -> Int -> Form

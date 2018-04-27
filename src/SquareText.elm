@@ -64,7 +64,7 @@ y5 = y4 + thicc
 text : String -> (Collage.Form, Float, Float)
 text string =
     let
-        length = toFloat String.length
+        length = toFloat (String.length string)
         totalWidth = length * width + (length - 1) * thicc
         move index shape =
             Collage.moveX (-totalWidth / 2 + width / 2 + (width + thicc) * (toFloat index)) shape
@@ -103,7 +103,7 @@ toCharacter char =
                 , (x2, y1)
                 , (x1, y1)
                 , (x1, y4)
-                , (x3, y4)
+                , (x2, y4)
                 , (x3, y5)
                 , (x0, y5)
                 ]
@@ -211,13 +211,14 @@ toCharacter char =
                 , (x2, y1)
                 , (x1, y1)
                 , (x1, y2)
-                , (x3, y2)
+                , (x2, y2)
+                , (x3, y3)
                 , (x3, y4 - small)
                 , (x2, y4 - small)
                 , (x2, y3)
                 , (x1, y3)
                 , (x1, y4)
-                , (x3, y4)
+                , (x2, y4)
                 , (x3, y5)
                 , (x0, y5)
                 ]
@@ -230,7 +231,7 @@ toCharacter char =
                 , (x2, y3)
                 , (x1, y3)
                 , (x1, y4)
-                , (x3, y4)
+                , (x2, y4)
                 , (x3, y5)
                 , (x0, y5)
                 , (x0, y2)
