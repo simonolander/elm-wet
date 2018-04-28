@@ -8,6 +8,7 @@ import Element exposing (Element)
 import Html exposing (Html, div, program)
 import Html.Attributes exposing (style)
 import Keyboard exposing (KeyCode, downs)
+import Pointer
 import Random
 import Task exposing (perform)
 import Time exposing (Time, every, millisecond)
@@ -24,6 +25,7 @@ type alias Model =
     { windowSize: Size
     , game: Game
     , time: Time
+    , pointerDown: Bool
     }
 
 
@@ -64,6 +66,7 @@ init =
             { windowSize = windowSize
             , game = game
             , time = time
+            , pointerDown = False
             }
         cmd = Cmd.batch
             [ perform Resize Window.size
@@ -115,6 +118,52 @@ update msg model =
                             , Cmd.none
                             )
 
+        PointerDown event ->
+            let
+                position = event.pointer.clientPos
+                x = Tuple.first position
+                lane =
+                    if x > toFloat model.windowSize.width / 2
+                    then
+                        Right
+                    else
+                        Left
+            in
+                ( { model
+                  | game = setCharacterLane lane model.game
+                  , pointerDown = True
+                  }
+                , Cmd.none
+                )
+
+        PointerMove event ->
+            if model.pointerDown
+            then
+                let
+                    position = event.pointer.clientPos
+                    x = Tuple.first position
+                    lane =
+                        if x > toFloat model.windowSize.width / 2
+                        then
+                            Right
+                        else
+                            Left
+                in
+                    ( { model
+                      | game = setCharacterLane lane model.game
+                      }
+                    , Cmd.none
+                    )
+            else
+                ( model, Cmd.none )
+
+        PointerUp event ->
+            ( { model
+              | pointerDown = False
+              }
+            , Cmd.none
+            )
+
         GameGenerated game ->
             ( { model
               | game = game
@@ -144,7 +193,7 @@ subscriptions model =
                 ]
 
 
-view : Model -> Html msg
+view : Model -> Html Msg
 view model =
     let aspect = 9/16
         windowWidth = model.windowSize.width
@@ -173,7 +222,6 @@ view model =
 --                , ("background-repeat", "no-repeat")
                 , ("background-size", "cover")
                 , ("background-position", "center")
-
                 ]
             ]
             [ div
@@ -188,7 +236,11 @@ view model =
                     , ("background-image", "url(/assets/forest-puddle-animation.gif)")
                     , ("background-repeat", "no-repeat")
                     , ("background-size", toString width ++ "px" ++ " " ++ toString height ++ "px")
+                    , ( "touch-action", "none" )
                     ]
+                , Pointer.onDown PointerDown
+                , Pointer.onMove PointerMove
+                , Pointer.onUp PointerUp
                 ]
                 [ game (width, height) model.game ]
             ]
