@@ -24,7 +24,7 @@ import SquareText
 type alias Model =
     { windowSize: Size
     , game: Game
-    , time: Time
+    , frameRate: Time
     , pointerDown: Bool
     }
 
@@ -56,16 +56,15 @@ init =
         game =
             { boards = boards
             , score = 0
-            , gameState = Paused
+            , gameState = Running
             , numHits = 0
             , character = character
             , remainingLives = 3
             }
-        time = 0
         model =
             { windowSize = windowSize
             , game = game
-            , time = time
+            , frameRate = 0
             , pointerDown = False
             }
         cmd = Cmd.batch
@@ -172,7 +171,7 @@ update msg model =
             )
 
         GenerateBlock time ->
-            ( { model | time = time }, generateBlock model.game)
+            ( model, generateBlock model.game)
 
 
 subscriptions : Model -> Sub Msg
@@ -195,7 +194,7 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    let aspect = 9/16
+    let
         windowWidth = model.windowSize.width
         windowHeight = model.windowSize.height
         windowAspect = toFloat windowWidth / toFloat windowHeight
@@ -217,32 +216,33 @@ view model =
                 [ ("width", "100%")
                 , ("height", "100%")
                 , ("overflow", "hidden")
---                , ("background", "rgb(18, 43, 23)")
-                , ("background", "linear-gradient( rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(/assets/forest-puddle.jpg)")
---                , ("background-repeat", "no-repeat")
-                , ("background-size", "cover")
-                , ("background-position", "center")
+                , ("background", "rgb(18, 43, 23)")
+--                , ("background", "linear-gradient( rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url(/assets/forest-puddle.jpg)")
+--                , ("background-size", "cover")
+--                , ("background-position", "center")
                 ]
+            , Pointer.onDown PointerDown
+            , Pointer.onMove PointerMove
+            , Pointer.onUp PointerUp
             ]
             [ div
                 [ style
                     [ ("width", toString width ++ "px")
                     , ("height", toString height ++ "px")
                     , ("overflow", "hidden")
-                    , ("background", "#8d94c5")
+--                    , ("background", "#8d94c5")
                     , ("left", left)
                     , ("top", top)
                     , ("position", "absolute")
-                    , ("background-image", "url(/assets/forest-puddle-animation.gif)")
+                    , ("background-image", "url(/assets/forest-puddle.png)")
                     , ("background-repeat", "no-repeat")
-                    , ("background-size", toString width ++ "px" ++ " " ++ toString height ++ "px")
-                    , ( "touch-action", "none" )
+                    , ("background-size", "cover")
+                    , ("touch-action", "none")
                     ]
-                , Pointer.onDown PointerDown
-                , Pointer.onMove PointerMove
-                , Pointer.onUp PointerUp
                 ]
-                [ game (width, height) model.game ]
+                [ game (width, height) model.game
+                , Html.text (toString model.frameRate)
+                ]
             ]
 
 
@@ -258,8 +258,8 @@ game (width, height) game =
                 |> List.map (board (bw, h) game.character)
                 |> List.indexedMap (\ index board -> moveX (-w/2 + bw/2 + bw * (toFloat index)) board)
                 |> group
-            , topBar (w, h)
-            , score (width, height) game.score
+--            , topBar (w, h)
+--            , score (width, height) game.score
             , lives (width, height) game.remainingLives
             ]
             |> Element.toHtml
@@ -306,12 +306,22 @@ lives (width, height) remainingLives =
         color index heart =
             filled (if index < remainingLives then Color.red else Color.darkCharcoal) heart
 
+        sprite : Int -> Form
+        sprite index =
+            let
+                src =
+                    if index < remainingLives
+                        then "/assets/red-heart.png"
+                        else "/assets/grey-heart.png"
+            in
+                Element.image (round heartWidth) (round heartHeight) src |> Collage.toForm
+
         move : Int -> Form -> Form
         move index heart =
             Collage.move (-w / 2 + heartWidth * 1.5 * (toFloat index) + heartWidth, h / 2 - heartHeight) heart
     in
-        List.repeat 3 (heart heartWidth heartHeight)
-        |> List.indexedMap color
+        List.range 0 2
+        |> List.map sprite
         |> List.indexedMap move
         |> group
 
@@ -354,28 +364,31 @@ board (width, height) character board =
                         Right -> -width/2 + w/2 + 3 * width / 5
                 y = height * character.y + w / 2 - height / 2
             in
-                rect w h |> filled Color.green |> move (x, y)
+                viewCharacter (round w, round h) |> move (x, y)
     in
         group
             [ blocks
             , characterBlock
             ]
 
+viewCharacter : (Int, Int) -> Form
+viewCharacter (w, h) =
+    Element.image w h "/assets/stickman.png" |> Collage.toForm
+
 
 block : (Float, Float) -> Block -> Form
 block (width, height) block =
     let lane = block.lane
         r = width / 5 / 2
+        w = round (r * 2)
         x = case block.lane of
             Left -> -width/2 + r + width / 5
             Right -> -width/2 + r + 3 * width / 5
         y = height * block.y - height / 2 + r
-        shape = Collage.polygon ( (0, r*1.5) :: ( circleArc 0 0 r (pi * 3 / 4) (pi * 3 / 2) 20 ) )
     in
-        Collage.group
-            [ shape |> filled (Color.rgb 43 128 255)
-            , shape |> Collage.outlined Collage.defaultLine
-            ] |> move (x, y)
+        Element.image w w "/assets/raindrop.png"
+        |> Collage.toForm
+        |> Collage.move (x, y)
 
 
 onTick : Time -> Model -> (Model, Cmd Msg)
@@ -384,6 +397,7 @@ onTick diff model =
         newModel =
             { model
             | game = updateGame diff model.game
+            , frameRate = diff
             }
         cmd = Cmd.none
     in
